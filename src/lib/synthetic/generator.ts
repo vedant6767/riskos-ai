@@ -11,7 +11,6 @@ const CUSTOMER_COUNT = 80;
 const DEVICE_COUNT = 120;
 
 const PAYMENT_METHODS: PaymentMethod[] = ['card', 'upi', 'netbanking', 'wallet', 'emi', 'bnpl'];
-const PAYMENT_STATUSES: PaymentStatus[] = ['success', 'failed', 'pending', 'refunded', 'disputed'];
 
 // Realistic Indian merchant transaction amounts (in INR)
 const AMOUNT_PROFILES = [
@@ -139,7 +138,7 @@ export function generateSyntheticDataset(seed = 42): {
       ? Math.floor(rand() * 10) // High-risk devices cluster in first 10
       : Math.floor(rand() * DEVICE_COUNT);
 
-    const device = devices[deviceIndex];
+    // (device properties used in device_fingerprint lookup above)
 
     // Time patterns
     let hourOfDay: number;

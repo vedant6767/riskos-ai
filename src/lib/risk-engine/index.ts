@@ -3,9 +3,7 @@
 // Signals + Scoring + Policy (NO LLM in this path)
 // ============================================================
 
-import type { Transaction, RiskSignal, SignalResult, RiskEngineResult, RiskLevel, RiskPolicy, PolicyAction, PolicyDecision } from '@/types';
-
-export const MODEL_VERSION = 'v1.0';
+import type { SignalResult, RiskEngineResult, RiskLevel, RiskPolicy, PolicyAction, PolicyDecision } from '@/types';export const MODEL_VERSION = 'v1.0';
 
 // ---- Signal Calculators ----
 
@@ -227,7 +225,6 @@ export function evaluatePolicy(
   level: RiskLevel,
   policy: RiskPolicy,
   aiConfidence?: number,
-  aiRecommendation?: string
 ): PolicyDecision {
   // Base action from score thresholds
   let action: PolicyAction;

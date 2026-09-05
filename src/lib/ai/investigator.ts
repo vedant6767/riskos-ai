@@ -4,14 +4,14 @@
 // ============================================================
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
-import type { Transaction, RiskSignal, RiskLevel, AIDecision } from '@/types';
+import type { Transaction, RiskSignal, RiskLevel } from '@/types';
 
 // Validate API key at module load (server-side only)
 if (!process.env.GEMINI_API_KEY) {
   console.warn('[AI] GEMINI_API_KEY not set — AI investigations will fail');
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? 'MISSING');
+const genAI = new GoogleGenerativeAI((process.env.GEMINI_API_KEY ?? 'MISSING').trim());
 
 // ---- Zod schema for structured AI output ----
 // Validated before storage — malformed AI output is rejected

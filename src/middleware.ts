@@ -38,13 +38,17 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/review-queue') ||
     pathname.startsWith('/evaluation') ||
     pathname.startsWith('/admin') ||
+    pathname.startsWith('/api/dashboard') ||
+    pathname.startsWith('/api/cases') ||
     pathname.startsWith('/api/transactions') ||
     pathname.startsWith('/api/risk') ||
     pathname.startsWith('/api/investigations') ||
     pathname.startsWith('/api/review') ||
     pathname.startsWith('/api/evaluation') ||
     pathname.startsWith('/api/audit') ||
-    pathname.startsWith('/api/seed');
+    pathname.startsWith('/api/seed') ||
+    pathname.startsWith('/api/simulate-spike') ||
+    pathname.startsWith('/api/admin');
 
   if (isProtectedRoute && !user) {
     const loginUrl = new URL('/login', request.url);

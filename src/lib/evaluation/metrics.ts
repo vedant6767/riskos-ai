@@ -19,7 +19,6 @@ export function calculateMetrics(
   let fraudAmountCaught = 0;
   let falsePositiveAmount = 0;
   let falseNegativeAmount = 0;
-  let totalFraudAmount = 0;
 
   for (const r of records) {
     const predicted = r.predictedScore >= threshold;
@@ -38,7 +37,7 @@ export function calculateMetrics(
       falseNegativeAmount += r.amount;
     }
 
-    if (actual) totalFraudAmount += r.amount;
+    if (actual) { /* fraud transaction — already tracked */ }
   }
 
   const precision = TP + FP > 0 ? TP / (TP + FP) : 0;
