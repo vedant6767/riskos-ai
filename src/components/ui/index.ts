@@ -4,6 +4,7 @@ export { Card, CardHeader, CardTitle } from './Card';
 export { Input, Textarea } from './Input';
 export { Select } from './Select';
 export { Spinner, PageLoader } from './Spinner';
+export { Skeleton, AdminSkeleton, ReviewQueueSkeleton, InvestigationSkeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
 export { ErrorState } from './ErrorState';
 export { ToastProvider, useToast } from './Toast';

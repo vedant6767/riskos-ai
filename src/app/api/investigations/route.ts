@@ -220,11 +220,13 @@ export async function POST(request: NextRequest) {
         orgId,
         actorId: undefined,
         actorType: 'system',
-        eventType: 'investigation.failed',
+        eventType: aiResult.breakerOpen ? 'ai.circuit_breaker_open' : 'investigation.failed',
         entityType: 'risk_case',
         entityId: caseId,
-        action: `AI investigation failed — falling back to engine verdict`,
-        details: { error: aiResult.error, fallback: true },
+        action: aiResult.breakerOpen
+          ? `AI circuit breaker open — engine-only verdict used`
+          : `AI investigation failed — falling back to engine verdict`,
+        details: { error: aiResult.error, fallback: true, breakerOpen: aiResult.breakerOpen ?? false },
       });
     }
 

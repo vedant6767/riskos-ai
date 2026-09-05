@@ -4,7 +4,7 @@ import { useSession } from '@/context/SessionContext';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { PageLoader } from '@/components/ui/Spinner';
+import { AdminSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
@@ -100,7 +100,7 @@ export default function AdminPage() {
     );
   }
 
-  if (loading) return <PageLoader message="Loading admin panel…" />;
+  if (loading) return <AdminSkeleton />;
   if (error)   return <ErrorState message={error} onRetry={fetchData} />;
 
   return (

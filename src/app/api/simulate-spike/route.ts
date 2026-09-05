@@ -3,11 +3,12 @@
 // Injects a burst of high-risk synthetic transactions.
 // ADMIN + RISK_ANALYST only. Clearly labeled as simulation.
 // ============================================================
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { calculateRiskScore } from '@/lib/risk-engine';
 import { writeAuditLog } from '@/lib/audit';
+import { checkIdempotency, startIdempotency, completeIdempotency, getIdempotencyKey } from '@/lib/idempotency';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,7 +46,7 @@ function buildSpikeTx(index: number, orgId: string, customerId: string, deviceId
   };
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -61,6 +62,21 @@ export async function POST() {
       return NextResponse.json({ error: 'Insufficient permissions — ADMIN or RISK_ANALYST required' }, { status: 403 });
     }
     const orgId = membership.org_id;
+
+    // Idempotency — prevent double-spike on network retry
+    const idempKey = getIdempotencyKey(request);
+    if (idempKey) {
+      const cached = checkIdempotency(`spike:${idempKey}`);
+      if (cached.exists) {
+        if (cached.processing) {
+          return NextResponse.json({ error: 'Spike already in progress' }, { status: 409 });
+        }
+        return NextResponse.json(cached.result, {
+          headers: { 'Idempotency-Replayed': 'true' },
+        });
+      }
+      startIdempotency(`spike:${idempKey}`);
+    }
 
     // Find a high-risk customer to attribute the spike to
     const { data: customers } = await supabaseAdmin
@@ -186,11 +202,13 @@ export async function POST() {
       outcome: 'simulation_complete',
     });
 
-    return NextResponse.json({
+    const result = {
       success: true,
       message: `[SIMULATION] Injected ${results.inserted} high-risk transactions, created ${results.casesCreated} cases in review queue.`,
       ...results,
-    });
+    };
+    if (idempKey) completeIdempotency(`spike:${idempKey}`, result);
+    return NextResponse.json(result);
   } catch (err) {
     console.error('[SimulateSpike] Error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

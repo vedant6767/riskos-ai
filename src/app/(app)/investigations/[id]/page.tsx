@@ -5,11 +5,13 @@ import { useToast } from '@/components/ui/Toast';
 import { Button } from '@/components/ui/Button';
 import { Badge, RiskBadge } from '@/components/ui/Badge';
 import { Card, CardHeader, CardTitle } from '@/components/ui/Card';
-import { PageLoader } from '@/components/ui/Spinner';
+import { InvestigationSkeleton } from '@/components/ui/Skeleton';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { Textarea } from '@/components/ui/Input';
 import { formatCurrency, formatDate, maskId } from '@/lib/utils';
 import { calculateCounterfactual } from '@/lib/risk-engine';
+import { RiskDNA } from '@/components/risk/RiskDNA';
+import { ScoreBoundary } from '@/components/risk/ScoreBoundary';
 import type { CounterfactualResult, RiskLevel } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -83,22 +85,37 @@ function ScoreGauge({ score, level }: { score: number; level: string }) {
   );
 }
 
-// ── signal bar ─────────────────────────────────────────────────────────────────
-function SignalBar({ signal }: { signal: Signal }) {
+// ── signal bar — animated entry ────────────────────────────────────────────────
+function SignalBar({ signal, index }: { signal: Signal; index: number }) {
+  const [width, setWidth] = useState(0);
   const maxPts = 25;
-  const pct = Math.min(100, (signal.contribution / maxPts) * 100);
-  const color = signal.contribution >= 20 ? 'bg-red-500' : signal.contribution >= 10 ? 'bg-orange-500' : signal.contribution >= 5 ? 'bg-amber-500' : 'bg-emerald-500';
+  const targetPct = Math.min(100, (signal.contribution / maxPts) * 100);
+  const color =
+    signal.contribution >= 20 ? 'bg-red-500'    :
+    signal.contribution >= 10 ? 'bg-orange-500' :
+    signal.contribution >=  5 ? 'bg-amber-500'  : 'bg-emerald-500';
   const label = signal.signal_type.replace(/_/g, ' ');
+
+  // Staggered entrance: delay = index * 80ms
+  useEffect(() => {
+    const timer = setTimeout(() => setWidth(targetPct), 60 + index * 80);
+    return () => clearTimeout(timer);
+  }, [targetPct, index]);
+
   return (
     <div className="space-y-1">
       <div className="flex items-center justify-between text-xs">
         <span className="text-slate-400 capitalize">{label}</span>
-        <span className={`font-bold ${signal.contribution > 0 ? 'text-slate-200' : 'text-slate-600'}`}>
+        <span className={`font-bold tabular-nums ${signal.contribution > 0 ? 'text-slate-200' : 'text-slate-600'}`}>
           {signal.contribution > 0 ? `+${signal.contribution}` : '0'} pts
         </span>
       </div>
       <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} aria-hidden="true" />
+        <div
+          className={`h-full rounded-full ${color} transition-all duration-500 ease-out`}
+          style={{ width: `${width}%` }}
+          aria-hidden="true"
+        />
       </div>
       <p className="text-xs text-slate-500">{signal.description ?? '—'}</p>
     </div>
@@ -458,7 +475,7 @@ function InvestigationContent({ id }: { id: string }) {
     }
   }
 
-  if (loading) return <PageLoader message="Loading case…" />;
+  if (loading) return <InvestigationSkeleton />;
   if (error || !caseData) return <ErrorState message={error ?? 'Case not found'} onRetry={fetchCase} />;
 
   const tx  = caseData.transaction;
@@ -589,11 +606,22 @@ function InvestigationContent({ id }: { id: string }) {
                   <>
                     <ScoreGauge score={rs.score} level={rs.level} />
                     <p className="text-xs text-slate-500 mt-3 text-center">Model {rs.model_version}</p>
+                    {/* Score boundary proximity */}
+                    <div className="w-full mt-3">
+                      <ScoreBoundary score={rs.score} />
+                    </div>
                   </>
                 ) : (
                   <p className="text-xs text-slate-500">Not scored</p>
                 )}
               </Card>
+
+              {/* Risk DNA radar */}
+              {signals.length > 0 && rs && (
+                <Card className="flex flex-col items-center py-4">
+                  <RiskDNA signals={signals.map(s => ({ signal_type: s.signal_type, contribution: s.contribution }))} score={rs.score} />
+                </Card>
+              )}
 
               {/* Policy result */}
               {rq?.policy_action && (
@@ -618,7 +646,7 @@ function InvestigationContent({ id }: { id: string }) {
           {signals.length > 0 && (
             <Section title="Signal Breakdown">
               <div className="space-y-4">
-                {signals.map(s => <SignalBar key={s.signal_type} signal={s} />)}
+                {signals.map((s, i) => <SignalBar key={s.signal_type} signal={s} index={i} />)}
               </div>
               <div className="mt-4 pt-4 border-t border-slate-800 flex justify-between text-sm">
                 <span className="text-slate-500">Total contribution</span>
