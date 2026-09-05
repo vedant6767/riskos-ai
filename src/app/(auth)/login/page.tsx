@@ -30,6 +30,12 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '';
+      if (key.startsWith('sb_publishable_') || !key.startsWith('eyJ')) {
+        setError('Supabase key is wrong format. Get the classic eyJ... anon key from Supabase → Settings → API.');
+        setLoading(false);
+        return;
+      }
       const supabase = createClient();
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (authError) {

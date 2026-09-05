@@ -1,6 +1,7 @@
 -- ============================================================
 -- RiskOS AI — Database Migration
--- Run this in Supabase SQL Editor (or via supabase db push)
+-- FULLY IDEMPOTENT — safe to run multiple times.
+-- Run this in Supabase SQL Editor (or via supabase db push).
 -- ============================================================
 
 -- Enable required extensions
@@ -46,7 +47,7 @@ create table if not exists public.organization_members (
 comment on table public.organization_members is 'Roles within organizations (ADMIN, RISK_ANALYST, MERCHANT, VIEWER)';
 
 create index if not exists idx_org_members_user_id on public.organization_members(user_id);
-create index if not exists idx_org_members_org_id on public.organization_members(org_id);
+create index if not exists idx_org_members_org_id  on public.organization_members(org_id);
 
 -- ============================================================
 -- ENTITY TABLES
@@ -108,11 +109,11 @@ create table if not exists public.transactions (
   unique(org_id, external_tx_id)
 );
 
-create index if not exists idx_transactions_org_id on public.transactions(org_id);
-create index if not exists idx_transactions_customer_id on public.transactions(customer_id);
-create index if not exists idx_transactions_created_at on public.transactions(created_at desc);
+create index if not exists idx_transactions_org_id       on public.transactions(org_id);
+create index if not exists idx_transactions_customer_id  on public.transactions(customer_id);
+create index if not exists idx_transactions_created_at   on public.transactions(created_at desc);
 create index if not exists idx_transactions_dataset_split on public.transactions(dataset_split);
-create index if not exists idx_transactions_is_fraud on public.transactions(is_fraud) where is_fraud is not null;
+create index if not exists idx_transactions_is_fraud     on public.transactions(is_fraud) where is_fraud is not null;
 
 -- ============================================================
 -- RISK TABLES
@@ -130,7 +131,7 @@ create table if not exists public.risk_scores (
   unique(transaction_id)
 );
 create index if not exists idx_risk_scores_org_id on public.risk_scores(org_id);
-create index if not exists idx_risk_scores_score on public.risk_scores(score desc);
+create index if not exists idx_risk_scores_score  on public.risk_scores(score desc);
 
 -- Risk Signals (one row per signal per transaction)
 create table if not exists public.risk_signals (
@@ -161,8 +162,8 @@ create table if not exists public.risk_cases (
   updated_at timestamptz default now() not null,
   unique(org_id, case_number)
 );
-create index if not exists idx_risk_cases_org_id on public.risk_cases(org_id);
-create index if not exists idx_risk_cases_status on public.risk_cases(status);
+create index if not exists idx_risk_cases_org_id   on public.risk_cases(org_id);
+create index if not exists idx_risk_cases_status   on public.risk_cases(status);
 create index if not exists idx_risk_cases_priority on public.risk_cases(priority);
 
 -- ============================================================
@@ -181,7 +182,7 @@ create table if not exists public.investigations (
   completed_at timestamptz
 );
 create index if not exists idx_investigations_case_id on public.investigations(case_id);
-create index if not exists idx_investigations_org_id on public.investigations(org_id);
+create index if not exists idx_investigations_org_id  on public.investigations(org_id);
 
 -- AI Decisions (validated structured Gemini output)
 create table if not exists public.ai_decisions (
@@ -220,9 +221,9 @@ create table if not exists public.risk_policies (
   low_max int not null default 30 check (low_max between 0 and 100),
   medium_max int not null default 60 check (medium_max between 0 and 100),
   high_max int not null default 80 check (high_max between 0 and 100),
-  low_action text not null default 'allow' check (low_action in ('allow','verify','review','escalate')),
+  low_action text not null default 'allow'    check (low_action    in ('allow','verify','review','escalate')),
   medium_action text not null default 'verify' check (medium_action in ('allow','verify','review','escalate')),
-  high_action text not null default 'review' check (high_action in ('allow','verify','review','escalate')),
+  high_action text not null default 'review'  check (high_action   in ('allow','verify','review','escalate')),
   critical_action text not null default 'escalate' check (critical_action in ('allow','verify','review','escalate')),
   min_ai_confidence int not null default 70 check (min_ai_confidence between 0 and 100),
   human_approval_threshold int not null default 75 check (human_approval_threshold between 0 and 100),
@@ -249,7 +250,7 @@ create table if not exists public.review_queue (
   updated_at timestamptz default now() not null
 );
 create index if not exists idx_review_queue_org_status on public.review_queue(org_id, status);
-create index if not exists idx_review_queue_priority on public.review_queue(priority);
+create index if not exists idx_review_queue_priority   on public.review_queue(priority);
 
 -- ============================================================
 -- AUDIT LOGS (Append-Only)
@@ -271,12 +272,12 @@ create table if not exists public.audit_logs (
   created_at timestamptz default now() not null
 );
 
--- Prevent UPDATE and DELETE on audit_logs
+-- Append-only rules (CREATE OR REPLACE is idempotent for rules)
 create or replace rule audit_no_update as on update to public.audit_logs do instead nothing;
 create or replace rule audit_no_delete as on delete to public.audit_logs do instead nothing;
 
-create index if not exists idx_audit_logs_org_id on public.audit_logs(org_id);
-create index if not exists idx_audit_logs_entity_id on public.audit_logs(entity_id);
+create index if not exists idx_audit_logs_org_id     on public.audit_logs(org_id);
+create index if not exists idx_audit_logs_entity_id  on public.audit_logs(entity_id);
 create index if not exists idx_audit_logs_created_at on public.audit_logs(created_at desc);
 create index if not exists idx_audit_logs_event_type on public.audit_logs(event_type);
 
@@ -323,25 +324,25 @@ create index if not exists idx_evaluation_runs_org_id on public.evaluation_runs(
 -- ROW LEVEL SECURITY
 -- ============================================================
 
--- Enable RLS on all tables
-alter table public.users enable row level security;
-alter table public.organizations enable row level security;
+-- Enable RLS on all tables (ALTER TABLE ... ENABLE ROW LEVEL SECURITY is idempotent)
+alter table public.users             enable row level security;
+alter table public.organizations     enable row level security;
 alter table public.organization_members enable row level security;
-alter table public.customers enable row level security;
-alter table public.devices enable row level security;
-alter table public.transactions enable row level security;
-alter table public.risk_scores enable row level security;
-alter table public.risk_signals enable row level security;
-alter table public.risk_cases enable row level security;
-alter table public.investigations enable row level security;
-alter table public.ai_decisions enable row level security;
-alter table public.risk_policies enable row level security;
-alter table public.review_queue enable row level security;
-alter table public.audit_logs enable row level security;
-alter table public.datasets enable row level security;
-alter table public.evaluation_runs enable row level security;
+alter table public.customers         enable row level security;
+alter table public.devices           enable row level security;
+alter table public.transactions      enable row level security;
+alter table public.risk_scores       enable row level security;
+alter table public.risk_signals      enable row level security;
+alter table public.risk_cases        enable row level security;
+alter table public.investigations    enable row level security;
+alter table public.ai_decisions      enable row level security;
+alter table public.risk_policies     enable row level security;
+alter table public.review_queue      enable row level security;
+alter table public.audit_logs        enable row level security;
+alter table public.datasets          enable row level security;
+alter table public.evaluation_runs   enable row level security;
 
--- Helper function: get user's org_ids
+-- Helper function (CREATE OR REPLACE is idempotent)
 create or replace function public.get_user_org_ids()
 returns setof uuid
 language sql
@@ -351,72 +352,94 @@ as $$
   select org_id from public.organization_members where user_id = auth.uid();
 $$;
 
--- Users: can see own profile
+-- ============================================================
+-- RLS POLICIES
+-- Drop each policy before recreating so reruns never error.
+-- ============================================================
+
+-- users
+drop policy if exists "users_own_profile"       on public.users;
 create policy "users_own_profile" on public.users
   for all using (id = auth.uid());
 
--- Organizations: can see orgs you're a member of
+-- organizations
+drop policy if exists "org_member_access"       on public.organizations;
 create policy "org_member_access" on public.organizations
   for select using (id in (select public.get_user_org_ids()));
 
--- Organization members: can see members of your orgs
+-- organization_members
+drop policy if exists "org_member_list"         on public.organization_members;
 create policy "org_member_list" on public.organization_members
   for select using (org_id in (select public.get_user_org_ids()));
 
--- Customers: org isolation
+-- customers
+drop policy if exists "customers_org_isolation" on public.customers;
 create policy "customers_org_isolation" on public.customers
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Devices: org isolation
+-- devices
+drop policy if exists "devices_org_isolation"   on public.devices;
 create policy "devices_org_isolation" on public.devices
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Transactions: org isolation
+-- transactions
+drop policy if exists "transactions_org_isolation" on public.transactions;
 create policy "transactions_org_isolation" on public.transactions
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Risk scores: org isolation
+-- risk_scores
+drop policy if exists "risk_scores_org_isolation" on public.risk_scores;
 create policy "risk_scores_org_isolation" on public.risk_scores
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Risk signals: org isolation
+-- risk_signals
+drop policy if exists "risk_signals_org_isolation" on public.risk_signals;
 create policy "risk_signals_org_isolation" on public.risk_signals
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Risk cases: org isolation
+-- risk_cases
+drop policy if exists "risk_cases_org_isolation" on public.risk_cases;
 create policy "risk_cases_org_isolation" on public.risk_cases
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Investigations: org isolation
+-- investigations
+drop policy if exists "investigations_org_isolation" on public.investigations;
 create policy "investigations_org_isolation" on public.investigations
   for all using (org_id in (select public.get_user_org_ids()));
 
--- AI decisions: org isolation
+-- ai_decisions
+drop policy if exists "ai_decisions_org_isolation" on public.ai_decisions;
 create policy "ai_decisions_org_isolation" on public.ai_decisions
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Risk policies: org isolation
+-- risk_policies
+drop policy if exists "risk_policies_org_isolation" on public.risk_policies;
 create policy "risk_policies_org_isolation" on public.risk_policies
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Review queue: org isolation
+-- review_queue
+drop policy if exists "review_queue_org_isolation" on public.review_queue;
 create policy "review_queue_org_isolation" on public.review_queue
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Audit logs: org isolation (read-only for non-admin; writes via service role)
+-- audit_logs (read-only for users; writes go via service role which bypasses RLS)
+drop policy if exists "audit_logs_org_read"     on public.audit_logs;
 create policy "audit_logs_org_read" on public.audit_logs
   for select using (org_id in (select public.get_user_org_ids()));
 
--- Datasets: org isolation
+-- datasets
+drop policy if exists "datasets_org_isolation"  on public.datasets;
 create policy "datasets_org_isolation" on public.datasets
   for all using (org_id in (select public.get_user_org_ids()));
 
--- Evaluation runs: org isolation
+-- evaluation_runs
+drop policy if exists "eval_runs_org_isolation" on public.evaluation_runs;
 create policy "eval_runs_org_isolation" on public.evaluation_runs
   for all using (org_id in (select public.get_user_org_ids()));
 
 -- ============================================================
 -- TRIGGERS: Auto-update updated_at
+-- Drop before create so reruns never error.
 -- ============================================================
 
 create or replace function public.handle_updated_at()
@@ -429,18 +452,22 @@ begin
 end;
 $$;
 
+drop trigger if exists trg_organizations_updated_at  on public.organizations;
 create trigger trg_organizations_updated_at
   before update on public.organizations
   for each row execute function public.handle_updated_at();
 
+drop trigger if exists trg_risk_cases_updated_at     on public.risk_cases;
 create trigger trg_risk_cases_updated_at
   before update on public.risk_cases
   for each row execute function public.handle_updated_at();
 
+drop trigger if exists trg_risk_policies_updated_at  on public.risk_policies;
 create trigger trg_risk_policies_updated_at
   before update on public.risk_policies
   for each row execute function public.handle_updated_at();
 
+drop trigger if exists trg_review_queue_updated_at   on public.review_queue;
 create trigger trg_review_queue_updated_at
   before update on public.review_queue
   for each row execute function public.handle_updated_at();
@@ -466,13 +493,27 @@ begin
 end;
 $$;
 
-create or replace trigger on_auth_user_created
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
 -- ============================================================
 -- Enable Realtime for dashboard live updates
+-- Use DO block so "already member of publication" doesn't error.
 -- ============================================================
-alter publication supabase_realtime add table public.transactions;
-alter publication supabase_realtime add table public.risk_cases;
-alter publication supabase_realtime add table public.review_queue;
+
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.transactions;
+  exception when others then null; end;
+
+  begin
+    alter publication supabase_realtime add table public.risk_cases;
+  exception when others then null; end;
+
+  begin
+    alter publication supabase_realtime add table public.review_queue;
+  exception when others then null; end;
+end $$;

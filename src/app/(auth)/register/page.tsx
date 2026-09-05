@@ -60,6 +60,20 @@ export default function RegisterPage() {
     try {
       const supabase = createClient();
 
+      // Debug: verify the Supabase client is configured
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (!url || url === 'PASTE_YOUR_ANON_KEY_HERE_eyJ...' || !url.startsWith('https://')) {
+        setError('Supabase is not configured. Add your real keys to .env.local and restart the server.');
+        setLoading(false);
+        return;
+      }
+      if (!key || key.startsWith('sb_publishable_') || !key.startsWith('eyJ')) {
+        setError('Invalid Supabase anon key. You need the classic eyJ... key from Supabase → Settings → API → "anon public". The sb_publishable_ format is not compatible with this SDK version.');
+        setLoading(false);
+        return;
+      }
+
       // Sign up with Supabase Auth — metadata carries full_name + org_name
       // Server-side trigger creates the users row; org + membership are created
       // via our register API route.
